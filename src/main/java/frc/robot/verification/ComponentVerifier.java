@@ -2,17 +2,15 @@ package frc.robot.verification;
 
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.hardware.traits.CommonDevice;
 import edu.wpi.first.util.sendable.Sendable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 public class ComponentVerifier {
-    public static final VerificationResult POSITIVE = new VerificationResult(VerificationResult.Status.SUCCESS, "This component is functional.");
-
-    public record VerificationResult(Status status, String message) {
-        enum Status {
+    public record VerificationResult(Status status, String message, String name) {
+        public enum Status {
             SUCCESS,
             FAILURE
         }
@@ -21,30 +19,35 @@ public class ComponentVerifier {
     public static List<VerificationResult> verify(Verifiable verifiable) {
         List<VerificationResult> results = new ArrayList<>();
         for (Sendable comp : verifiable.components()) {
-            if (comp instanceof TalonFX talon) {
-                results.add(verifyComponent("", talon, (t, n) -> {
-                    double temp = talon.getProcessorTemp().getValueAsDouble();
-                    if (1 > temp || temp > 50) throw new RuntimeException(n + " is reporting a temperature of " + temp + " Celsius, something is very wrong.");
-                }));
-            }
-            if (comp instanceof CANcoder can) {
-                results.add(verifyComponent("", can, (c, n) -> {
-                    if (can.getFaultField().getValue() != 0) throw new RuntimeException("Hardware error with " + n + ".");
-                }));
+            if (comp instanceof CommonDevice device) {
+                String name = String.valueOf(device.getDeviceID());
+
+                if (comp instanceof TalonFX talon) {
+                    results.add(verifyComponent(name, talon, () -> {
+                        double temp = talon.getProcessorTemp().getValueAsDouble();
+                        if (1 > temp || temp > 50)
+                            throw new RuntimeException(name + " is reporting a temperature of " + temp + " Celsius, something is very wrong.");
+                    }));
+                } else if (comp instanceof CANcoder can) {
+                    results.add(verifyComponent(name, can, () -> {
+                        if (can.getFaultField().getValue() != 0)
+                            throw new RuntimeException("Hardware error with " + name + ".");
+                    }));
+                }
             }
         }
 
         return results;
     }
 
-    private static <T extends Sendable> VerificationResult verifyComponent(String name, T comp, BiConsumer<T, String> function) {
-        if (comp == null) return new VerificationResult(VerificationResult.Status.FAILURE, name + " was detected as null.");
+    private static <T extends Sendable> VerificationResult verifyComponent(String name, T comp, Runnable function) {
+        if (comp == null) return new VerificationResult(VerificationResult.Status.FAILURE, "This component detected as null.", name);
         try {
-            function.accept(comp, name);
+            function.run();
         } catch (RuntimeException e) {
-            return new VerificationResult(VerificationResult.Status.FAILURE, e.getMessage());
+            return new VerificationResult(VerificationResult.Status.FAILURE, e.getMessage(), name);
         }
 
-        return POSITIVE;
+        return new VerificationResult(VerificationResult.Status.SUCCESS, "This component is functional.", name);
     }
 }
