@@ -1,8 +1,12 @@
 package frc.robot.verification;
 
 import com.ctre.phoenix6.hardware.CANcoder;
+import com.ctre.phoenix6.hardware.Pigeon2;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.hardware.traits.CommonDevice;
+import edu.wpi.first.units.AngleUnit;
+import edu.wpi.first.units.Measure;
+import edu.wpi.first.units.Units;
 import edu.wpi.first.util.sendable.Sendable;
 
 import java.util.ArrayList;
@@ -33,6 +37,14 @@ public class ComponentVerifier {
                         if (can.getFaultField().getValue() != 0)
                             throw new RuntimeException("Hardware error with " + name + ".");
                     }));
+                } else if (comp instanceof Pigeon2 pigeon) {
+                    results.add(verifyComponent(name, pigeon, () -> {
+                        Measure<AngleUnit> degrees = pigeon.getYaw().getValue();
+                        if (!degrees.isNear(Units.Degrees.of(0), 1e-5))
+                            throw new RuntimeException("Suspicious Pigeon yaw: " + degrees.toShortString());
+                        if (!pigeon.isConnected() || pigeon.getFaultField().getValue() != 0)
+                            throw new RuntimeException("The Pigeon reports a hardware failure.");
+                    }));
                 }
             }
         }
@@ -40,8 +52,8 @@ public class ComponentVerifier {
         return results;
     }
 
-    private static <T extends Sendable> VerificationResult verifyComponent(String name, T comp, Runnable function) {
-        if (comp == null) return new VerificationResult(VerificationResult.Status.FAILURE, "This component detected as null.", name);
+    public static <T> VerificationResult verifyComponent(String name, T comp, Runnable function) {
+        if (comp == null) return new VerificationResult(VerificationResult.Status.FAILURE, "This component is detected as null.", name);
         try {
             function.run();
         } catch (RuntimeException e) {

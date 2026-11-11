@@ -310,7 +310,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public List<Sendable> components() {
-        List<Sendable> list = new ArrayList<>();
+        List<Sendable> list = new ArrayList<>(List.of(getPigeon2()));
         for (SwerveModule<TalonFX, TalonFX, CANcoder> module : getModules()) {
             list.addAll(List.of(module.getDriveMotor(), module.getSteerMotor(), module.getEncoder()));
         }

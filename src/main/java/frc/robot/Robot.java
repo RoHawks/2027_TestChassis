@@ -6,16 +6,21 @@ package frc.robot;
 
 import com.ctre.phoenix6.HootAutoReplay;
 import edu.wpi.first.networktables.*;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.verification.ComponentVerifier;
-import frc.robot.verification.Verifiable;
+
+import java.io.FileReader;
+import java.util.HashMap;
+import java.util.List;
 
 public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
     private final RobotContainer m_robotContainer;
+    private final HashMap<String, String> busNames = new HashMap<>();
 
     /* log and replay timestamp and joystick data */
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
@@ -24,11 +29,28 @@ public class Robot extends TimedRobot {
 
     public Robot() {
         m_robotContainer = new RobotContainer();
+
+        //Pull the CAN ID to name pairings from the can.bus file and store them
+        try (FileReader reader = new FileReader("src/main/java/frc/robot/verification/can.bus")) {
+            StringBuilder builder = new StringBuilder();
+            int i;
+
+            while ((i = reader.read()) != -1) builder.append((char) i);
+            for (String line : builder.toString().split("\n")) {
+                String[] values = line.split("/");
+
+                busNames.put(values[0], values[1].trim());
+            }
+        } catch (Exception ignored) {}
     }
 
     @Override
     public void robotInit() {
-        verify(m_robotContainer.drivetrain, "Drivetrain");
+        verify(ComponentVerifier.verify(m_robotContainer.drivetrain), "Drivetrain");
+        verify(List.of(ComponentVerifier.verifyComponent("Battery", "", () -> {
+            double voltage = RobotController.getBatteryVoltage();
+            if (voltage < 12.2) throw new RuntimeException("Voltage is " + voltage + " V, which is below expected.");
+        })), "Battery");
     }
 
     @Override
@@ -89,12 +111,13 @@ public class Robot extends TimedRobot {
     public void simulationPeriodic() {}
 
     private final NetworkTable verification = NetworkTableInstance.getDefault().getTable("Component Verification");
-    private void verify(Verifiable verifiable, String system) {
+    private void verify(List<ComponentVerifier.VerificationResult> results, String system) {
         boolean error = false;
 
-        for (ComponentVerifier.VerificationResult result : ComponentVerifier.verify(verifiable)) {
+        for (ComponentVerifier.VerificationResult result : results) {
             if (result.status() == ComponentVerifier.VerificationResult.Status.SUCCESS) {
-                verification.getEntry(system + "/" + result.name()).setString(result.message());
+                //Either get the name from the HashMap or just use the provided name
+                verification.getEntry(system + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
 
                 error = true;
             }
