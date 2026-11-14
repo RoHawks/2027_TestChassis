@@ -8,6 +8,7 @@ import edu.wpi.first.units.AngleUnit;
 import edu.wpi.first.units.Measure;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.wpilibj.util.Color;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +16,13 @@ import java.util.List;
 public class ComponentVerifier {
     public record VerificationResult(Status status, String message, String name) {
         public enum Status {
-            SUCCESS,
-            FAILURE
+            SUCCESS(Color.kGreen),
+            FAILURE(Color.kRed);
+
+            public final Color color;
+            Status(Color color) {
+                this.color = color;
+            }
         }
     }
 

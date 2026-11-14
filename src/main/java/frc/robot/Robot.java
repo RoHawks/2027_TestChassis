@@ -8,9 +8,12 @@ import com.ctre.phoenix6.HootAutoReplay;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.subsystems.Lights;
 import frc.robot.verification.ComponentVerifier;
+import frc.robot.verification.ComponentVerifier.VerificationResult.Status;
 
 import java.io.FileReader;
 import java.util.HashMap;
@@ -22,6 +25,8 @@ public class Robot extends TimedRobot {
     private final RobotContainer m_robotContainer;
     private final HashMap<String, String> busNames = new HashMap<>();
 
+    private final Lights lights;
+
     /* log and replay timestamp and joystick data */
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
         .withTimestampReplay()
@@ -29,6 +34,7 @@ public class Robot extends TimedRobot {
 
     public Robot() {
         m_robotContainer = new RobotContainer();
+        lights = new Lights(1, 18);
 
         //Pull the CAN ID to name pairings from the can.bus file and store them
         try (FileReader reader = new FileReader("src/main/java/frc/robot/verification/can.bus")) {
@@ -112,17 +118,18 @@ public class Robot extends TimedRobot {
 
     private final NetworkTable verification = NetworkTableInstance.getDefault().getTable("Component Verification");
     private void verify(List<ComponentVerifier.VerificationResult> results, String system) {
-        boolean error = false;
+        Status status = Status.SUCCESS;
 
         for (ComponentVerifier.VerificationResult result : results) {
-            if (result.status() == ComponentVerifier.VerificationResult.Status.SUCCESS) {
+            if (result.status() == Status.FAILURE) {
                 //Either get the name from the HashMap or just use the provided name
                 verification.getEntry(system + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
 
-                error = true;
+                status = Status.FAILURE;
             }
         }
 
-        verification.getEntry(system + "/Results").setString(error ? "At least one component had an error." : "No errors were detected.");
+        SmartDashboard.putString("Component Verification", status == Status.FAILURE ? "At least one component had an error." : "No errors were detected.");
+        lights.display(status.color);
     }
 }
