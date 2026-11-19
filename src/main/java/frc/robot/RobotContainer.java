@@ -40,13 +40,10 @@ public class RobotContainer {
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
     private final CommandXboxController joystick = new CommandXboxController(0);
-    private final Robot robot;
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
-    public RobotContainer(Robot robot) {
-        this.robot = robot;
-
+    public RobotContainer() {
         configureBindings();
     }
 
@@ -94,7 +91,7 @@ public class RobotContainer {
         return Commands.sequence(
                 Commands.runOnce(timer::start),
 
-                drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
+                drivetrain.runOnce(drivetrain::tareEverything),
                 Commands.run(() -> {
                     System.out.println(drivetrain.getState().Pose);
 
@@ -108,12 +105,10 @@ public class RobotContainer {
                         Pose2d current = drivetrain.getState().Pose;
 
                         drivetrain.setControl(
-                                drive.withVelocityX((sample.x - current.getX()) / robot.getPeriod() + sample.vx)
-                                        .withVelocityY((sample.y - current.getY()) / robot.getPeriod() + sample.vy)
+                                drive.withVelocityX((sample.x - current.getX()) + sample.vx)
+                                        .withVelocityY((sample.y - current.getY()) + sample.vy)
                         );
-                    } else {
-                        drivetrain.setControl(drive.withVelocityX(0).withVelocityY(0));
-                    };
+                    } else drivetrain.applyRequest(() -> brake);
                 }, drivetrain)
         );
     }
