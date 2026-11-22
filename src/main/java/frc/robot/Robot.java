@@ -16,6 +16,7 @@ import frc.robot.verification.ComponentVerifier;
 import frc.robot.verification.ComponentVerifier.VerificationResult.Status;
 
 import java.io.FileReader;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -118,18 +119,17 @@ public class Robot extends TimedRobot {
 
     private final NetworkTable verification = NetworkTableInstance.getDefault().getTable("Component Verification");
     private void verify(List<ComponentVerifier.VerificationResult> results, String system) {
-        Status status = Status.SUCCESS;
+        if (results.isEmpty()) return;
 
+        results.sort(Comparator.comparingInt((v) -> v.status().ordinal()));
         for (ComponentVerifier.VerificationResult result : results) {
-            if (result.status() == Status.FAILURE) {
-                //Either get the name from the HashMap or just use the provided name
-                verification.getEntry(system + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
-
-                status = Status.FAILURE;
-            }
+            //Either get the name from the HashMap or just use the provided name
+            verification.getEntry(system + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
         }
 
-        SmartDashboard.putString("Component Verification", status == Status.FAILURE ? "At least one component had an error." : "No errors were detected.");
+        Status status = results.get(results.size() - 1).status();
+
+        SmartDashboard.putString("Component Verification", status.message);
         lights.display(status.color);
     }
 }

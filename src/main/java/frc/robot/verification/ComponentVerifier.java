@@ -16,12 +16,15 @@ import java.util.List;
 public class ComponentVerifier {
     public record VerificationResult(Status status, String message, String name) {
         public enum Status {
-            SUCCESS(Color.kGreen),
-            FAILURE(Color.kRed);
+            SUCCESS(Color.kGreen, "No errors were detected."),
+            WARNING(Color.kOrange, "At least one component had a warning."),
+            FAILURE(Color.kRed, "At least one component had an error.");
 
             public final Color color;
-            Status(Color color) {
+            public final String message;
+            Status(Color color, String message) {
                 this.color = color;
+                this.message = message;
             }
         }
     }
@@ -36,20 +39,20 @@ public class ComponentVerifier {
                     results.add(verifyComponent(name, talon, () -> {
                         double temp = talon.getProcessorTemp().getValueAsDouble();
                         if (1 > temp || temp > 50)
-                            throw new RuntimeException(name + " is reporting a temperature of " + temp + " Celsius, something is very wrong.");
+                            throw new RuntimeException(name + " is reporting a temperature of " + temp + " Celsius, something is very wrong.", new Throwable("FAILURE"));
                     }));
                 } else if (comp instanceof CANcoder can) {
                     results.add(verifyComponent(name, can, () -> {
                         if (can.getFaultField().getValue() != 0)
-                            throw new RuntimeException("Hardware error with " + name + ".");
+                            throw new RuntimeException("Hardware error with " + name + ".", new Throwable("FAILURE"));
                     }));
                 } else if (comp instanceof Pigeon2 pigeon) {
                     results.add(verifyComponent(name, pigeon, () -> {
                         Measure<AngleUnit> degrees = pigeon.getYaw().getValue();
                         if (!degrees.isNear(Units.Degrees.of(0), 1e-5))
-                            throw new RuntimeException("Suspicious Pigeon yaw: " + degrees.toShortString());
+                            throw new RuntimeException("Suspicious Pigeon yaw: " + degrees.toShortString(), new Throwable("FAILURE"));
                         if (!pigeon.isConnected() || pigeon.getFaultField().getValue() != 0)
-                            throw new RuntimeException("The Pigeon reports a hardware failure.");
+                            throw new RuntimeException("The Pigeon reports a hardware failure.", new Throwable("FAILURE"));
                     }));
                 }
             }
@@ -63,7 +66,7 @@ public class ComponentVerifier {
         try {
             function.run();
         } catch (RuntimeException e) {
-            return new VerificationResult(VerificationResult.Status.FAILURE, e.getMessage(), name);
+            return new VerificationResult(VerificationResult.Status.valueOf(e.getCause().getMessage()), e.getMessage(), name);
         }
 
         return new VerificationResult(VerificationResult.Status.SUCCESS, "This component is functional.", name);
