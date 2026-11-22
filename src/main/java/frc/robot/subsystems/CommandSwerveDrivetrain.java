@@ -16,6 +16,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
@@ -53,11 +54,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
         new SysIdRoutine.Config(
-            null,        // Use default ramp rate (1 V/s)
-            Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-            null,        // Use default timeout (10 s)
-            // Log state with SignalLogger class
-            state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())
+                null,        // Use default ramp rate (1 V/s)
+                Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
+                Time.ofBaseUnits(2, Seconds),        // Use default timeout (10 s)
+                // Log state with SignalLogger class
+                state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())
         ),
         new SysIdRoutine.Mechanism(
             output -> setControl(m_translationCharacterization.withVolts(output)),
@@ -69,11 +70,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /* SysId routine for characterizing steer. This is used to find PID gains for the steer motors. */
     private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
         new SysIdRoutine.Config(
-            null,        // Use default ramp rate (1 V/s)
-            Volts.of(7), // Use dynamic voltage of 7 V
-            null,        // Use default timeout (10 s)
-            // Log state with SignalLogger class
-            state -> SignalLogger.writeString("SysIdSteer_State", state.toString())
+                null,        // Use default ramp rate (1 V/s)
+                Volts.of(7), // Use dynamic voltage of 7 V
+                Time.ofBaseUnits(2, Seconds),        // Use default timeout (10 s)
+                // Log state with SignalLogger class
+                state -> SignalLogger.writeString("SysIdSteer_State", state.toString())
         ),
         new SysIdRoutine.Mechanism(
             volts -> setControl(m_steerCharacterization.withVolts(volts)),
@@ -89,13 +90,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
         new SysIdRoutine.Config(
-            /* This is in radians per second², but SysId only supports "volts per second" */
-            Volts.of(Math.PI / 6).per(Second),
-            /* This is in radians per second, but SysId only supports "volts" */
-            Volts.of(Math.PI),
-            null, // Use default timeout (10 s)
-            // Log state with SignalLogger class
-            state -> SignalLogger.writeString("SysIdRotation_State", state.toString())
+                /* This is in radians per second², but SysId only supports "volts per second" */
+                Volts.of(Math.PI / 6).per(Second),
+                /* This is in radians per second, but SysId only supports "volts" */
+                Volts.of(Math.PI),
+                Time.ofBaseUnits(2, Seconds),
+                // Log state with SignalLogger class
+                state -> SignalLogger.writeString("SysIdRotation_State", state.toString())
         ),
         new SysIdRoutine.Mechanism(
             output -> {
