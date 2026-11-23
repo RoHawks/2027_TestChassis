@@ -317,4 +317,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         return list;
     }
+
+    @Override
+    public String subsystem() {
+        return "Drivetrain";
+    }
 }

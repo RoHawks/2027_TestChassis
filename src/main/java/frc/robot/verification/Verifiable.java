@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface Verifiable {
     List<Sendable> components();
+
+    String subsystem();
 }

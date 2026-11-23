@@ -16,6 +16,7 @@ import frc.robot.verification.ComponentVerifier;
 import frc.robot.verification.ComponentVerifier.VerificationResult.Status;
 
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +28,8 @@ public class Robot extends TimedRobot {
     private final HashMap<String, String> busNames = new HashMap<>();
 
     private final Lights lights;
+
+    private final List<ComponentVerifier.VerificationResult> results = new ArrayList<>();
 
     /* log and replay timestamp and joystick data */
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
@@ -53,11 +56,13 @@ public class Robot extends TimedRobot {
 
     @Override
     public void robotInit() {
-        verify(ComponentVerifier.verify(m_robotContainer.drivetrain), "Drivetrain");
-        verify(List.of(ComponentVerifier.verifyComponent("Battery", "", () -> {
+        results.addAll(ComponentVerifier.verify(m_robotContainer.drivetrain));
+        results.add(ComponentVerifier.verifyComponent("Battery", "Battery", "", () -> {
             double voltage = RobotController.getBatteryVoltage();
             if (voltage < 12.2) throw new RuntimeException("Voltage is " + voltage + " V, which is below expected.");
-        })), "Battery");
+        }));
+
+        verify();
     }
 
     @Override
@@ -118,13 +123,13 @@ public class Robot extends TimedRobot {
     public void simulationPeriodic() {}
 
     private final NetworkTable verification = NetworkTableInstance.getDefault().getTable("Component Verification");
-    private void verify(List<ComponentVerifier.VerificationResult> results, String system) {
+    private void verify() {
         if (results.isEmpty()) return;
 
         results.sort(Comparator.comparingInt((v) -> v.status().ordinal()));
         for (ComponentVerifier.VerificationResult result : results) {
             //Either get the name from the HashMap or just use the provided name
-            verification.getEntry(system + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
+            verification.getEntry(result.subsystem() + "/" + busNames.getOrDefault(result.name(), result.name())).setString(result.message());
         }
 
         Status status = results.get(results.size() - 1).status();
