@@ -10,7 +10,10 @@ import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -130,6 +133,27 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         super(drivetrainConstants, modules);
         if (Utils.isSimulation()) {
             startSimThread();
+        }
+
+        try {
+            AutoBuilder.configure(
+                    () -> getState().Pose,
+                    (p) -> tareEverything(),
+                    () -> getState().Speeds,
+                    (s, f) -> setControl(new SwerveRequest.ApplyRobotSpeeds()
+                            .withSpeeds(s)
+                            .withWheelForceFeedforwardsX(f.robotRelativeForcesX())
+                            .withWheelForceFeedforwardsY(f.robotRelativeForcesY())),
+                    new PPHolonomicDriveController(
+                            new PIDConstants(1, 0, 0),
+                            new PIDConstants(1, 0, 0)
+                    ),
+                    RobotConfig.fromGUISettings(),
+                    () -> false,
+                    this
+            );
+        } catch (Exception e) {
+            //Similar thing as the other one, add this into the verify list once that system is merged in
         }
     }
 

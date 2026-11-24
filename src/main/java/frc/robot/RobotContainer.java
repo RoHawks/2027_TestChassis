@@ -6,15 +6,12 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
-import choreo.Choreo;
-import choreo.trajectory.SwerveSample;
-import choreo.trajectory.Trajectory;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import edu.wpi.first.math.geometry.Pose2d;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathPlannerPath;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -23,8 +20,6 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-
-import java.util.Optional;
 
 public class RobotContainer {
     private double MaxSpeed = 0.1 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -85,31 +80,14 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        final Trajectory<SwerveSample> trajectory = Choreo.<SwerveSample>loadTrajectory("NewPath").get();
-        Timer timer = new Timer();
+        try {
+            return AutoBuilder.followPath(PathPlannerPath.fromPathFile("Straight Line"));
+        } catch (Exception e) {
+            //Once the verification system is merged into this, switch to loading the path at the start and checking then
+            //so we aren't waiting for auto to start to see if everything is working.
+            DriverStation.reportError("The auto path did not load, this is really bad.", e.getStackTrace());
 
-        return Commands.sequence(
-                Commands.runOnce(timer::start),
-
-                drivetrain.runOnce(drivetrain::tareEverything),
-                Commands.run(() -> {
-                    System.out.println(drivetrain.getState().Pose);
-
-                    Optional<SwerveSample> optional = trajectory.sampleAt(timer.get(), false);
-
-                    if (trajectory.getTotalTime() > timer.get()) {
-                        SmartDashboard.putString("Total Time", String.valueOf(trajectory.getTotalTime()));
-                        SmartDashboard.putString("Timer", String.valueOf(timer.get()));
-
-                        SwerveSample sample = optional.get();
-                        Pose2d current = drivetrain.getState().Pose;
-
-                        drivetrain.setControl(
-                                drive.withVelocityX((sample.x - current.getX()) + sample.vx)
-                                        .withVelocityY((sample.y - current.getY()) + sample.vy)
-                        );
-                    } else drivetrain.applyRequest(() -> brake);
-                }, drivetrain)
-        );
+            return Commands.none();
+        }
     }
 }
